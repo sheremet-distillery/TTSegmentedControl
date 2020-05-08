@@ -1,4 +1,4 @@
-//
+/
 //  SegmentController.swift
 //  Segment
 //
@@ -12,7 +12,6 @@ import UIKit
 @IBDesignable
 open class TTSegmentedControl: UIView {
     
-    //Version: 0.4.10
     //Configure the options to for a custom design
     @IBInspectable open var defaultTextFont: UIFont = UIFont.helveticaNeueLight(12)
     @IBInspectable open var selectedTextFont: UIFont = UIFont.helveticaNeueLight(12)
@@ -60,7 +59,8 @@ open class TTSegmentedControl: UIView {
     fileprivate(set) var isDragging = false
     open var allowDrag = true
     open var allowChangeThumbWidth = true
-    
+    open var addBottomWhiteView = false
+
     fileprivate var containerView = UIView()
     fileprivate var thumbContainerView = UIView()
     fileprivate var thumbView = UIView()
@@ -72,7 +72,7 @@ open class TTSegmentedControl: UIView {
     fileprivate var lastSelectedViewWidth: CGFloat = 0
     
     
-    fileprivate let thumbPadding: CGFloat = 2
+	fileprivate var thumbPadding: CGFloat = 2
     
     fileprivate let shadowLayer = CAShapeLayer()
     fileprivate var gradientLayer = CAGradientLayer()
@@ -101,38 +101,46 @@ open class TTSegmentedControl: UIView {
         super.init(coder: aDecoder)
     }
     
-    open func reconfigure() {
-        self.isConfigurated = false
-        allItemLabels = []
-        allSelectedItemLabels = []
-        self.containerView.removeFromSuperview()
-        self.thumbContainerView.removeFromSuperview()
-        self.thumbView.removeFromSuperview()
-        self.selectedLabelsView.removeFromSuperview()
-        
-        self.thumbContainerView = UIView()
-        self.thumbView = UIView()
-        self.selectedLabelsView = UIView()
-        self.containerView = UIView()
-        self.layoutSubviews()
-    }
     
     open override func layoutSubviews() {
         super.layoutSubviews()
-        
+		
+		if addBottomWhiteView == true {
+			thumbPadding = 0
+		}
+		
         if !isConfigurated {
             configureItemsConent()
             configureViewBounds()
+            
             configureContainerView()
             configureItems()
             configureSelectedView()
             configureSelectedLabelsView()
             configureSelectedLabelItems()
+            
             isConfigurated = true
-        }
+		}
         
-        containerView.frame = bounds
-        containerView.layer.cornerRadius = cornerRadius < 0 ? 0.5 * containerView.frame.size.height : cornerRadius
+		containerView.frame = bounds
+		let cornerSize = cornerRadius < 0 ? 0.5 * containerView.frame.size.height : cornerRadius
+
+		if addBottomWhiteView == false {
+			containerView.layer.cornerRadius = cornerSize
+		} else {
+			
+			let maskPath = UIBezierPath(
+						roundedRect: containerView.bounds,
+						byRoundingCorners: [.topLeft, .topRight],
+						cornerRadii: CGSize(width: cornerSize, height: cornerSize)
+					)
+
+			let shape = CAShapeLayer()
+			shape.path = maskPath.cgPath
+
+			containerView.layer.mask = shape
+		}
+
         selectedLabelsView.frame = containerView.bounds
         
         updateFrameForLables(allItemLabels)
@@ -164,7 +172,9 @@ open class TTSegmentedControl: UIView {
         return 100
     }
     
-    open var isSwitch: Bool = false
+    fileprivate var isSwitch: Bool {
+        return attributedDefaultTitles.count == 2
+    }
     
     //MARK: - Helpers
     static public func UIColorFromRGB(_ rgbValue: UInt) -> UIColor {
@@ -261,20 +271,24 @@ extension TTSegmentedControl {
     }
     
     
-    fileprivate func configureItemsConent() {
-        var unselectedAttributedStrings = [NSAttributedString]()
-        for title in itemTitles {
-            let attString = attributedStringForText(title, isSelected: false)
-            unselectedAttributedStrings.append(attString)
-        }
-        attributedDefaultTitles = unselectedAttributedStrings
+	fileprivate func configureItemsConent() {
+		if attributedDefaultTitles == nil {
+			var unselectedAttributedStrings = [NSAttributedString]()
+			for title in itemTitles {
+				let attString = attributedStringForText(title, isSelected: false)
+				unselectedAttributedStrings.append(attString)
+			}
+			attributedDefaultTitles = unselectedAttributedStrings
+		}
         
-        var attributedStrings = [NSAttributedString]()
-        for title in itemTitles {
-            let attString = attributedStringForText(title, isSelected: true)
-            attributedStrings.append(attString)
-        }
-        attributedSelectedTitles = attributedStrings
+		if attributedSelectedTitles == nil {
+			var attributedStrings = [NSAttributedString]()
+			for title in itemTitles {
+				let attString = attributedStringForText(title, isSelected: true)
+				attributedStrings.append(attString)
+			}
+			attributedSelectedTitles = attributedStrings
+		}
     }
     
     fileprivate func configureItems() {
@@ -325,10 +339,27 @@ extension TTSegmentedControl {
         thumbContainerView.frame.size.height = containerView.frame.size.height
         
         thumbView.frame.size.height = containerView.frame.size.height - 4
-        thumbView.layer.cornerRadius = cornerRadius < 0 ? 0.5 * thumbView.frame.size.height : cornerRadius
+//        thumbView.layer.cornerRadius = cornerRadius < 0 ? 0.5 * thumbView.frame.size.height : cornerRadius
         thumbView.frame.origin.y = 2
-        
-        
+		
+		let cornerSize = cornerRadius < 0 ? 0.5 * thumbView.frame.size.height : cornerRadius
+		
+		if addBottomWhiteView == false {
+			thumbView.layer.cornerRadius = cornerSize
+		} else {
+			
+			let maskPath = UIBezierPath(
+				roundedRect: thumbView.bounds,
+				byRoundingCorners: [.topLeft, .topRight],
+				cornerRadii: CGSize(width: cornerSize, height: cornerSize)
+			)
+			
+			let shape = CAShapeLayer()
+			shape.path = maskPath.cgPath
+			
+			thumbView.layer.mask = shape
+		}
+		
         shadowLayer.frame = thumbView.bounds
         shadowLayer.cornerRadius = thumbView.layer.cornerRadius
         
@@ -353,6 +384,7 @@ extension TTSegmentedControl {
             label.frame.size.width = min(label.frame.size.width, itemWidth)
             label.frame.size.height = self.frame.size.height
             label.frame.origin.x = (sectionWidth - label.frame.size.width)/2 + i * itemWidth
+			
             i += 1
         }
     }
@@ -510,7 +542,7 @@ extension TTSegmentedControl {
         shadowLayer.frame = CGRect(x: 0, y: thumbPadding, width: width, height: height - 2 * thumbPadding)
         gradientLayer.frame = shadowLayer.bounds
         CATransaction.commit()
-        
+		
         if !animated {
             thumbContainerView.frame.size.width = width
             thumbContainerView.center = center
@@ -664,7 +696,7 @@ extension TTSegmentedControl {
             currentSelectedIndex = index
             return
         }
-        let label = allItemLabels[min(index, attributedDefaultTitles.count - 1)]
+        let label = allItemLabels[min(index, attributedDefaultTitles.count)]
         selectedLabelsView.isHidden = noItemSelected
         changeThumbFrameForPoint(label.center, animated: animated)
     }
@@ -792,4 +824,3 @@ extension UIFont {
         return UIFont(name: "HelveticaNeue-Light", size: size)!
     }
 }
-
